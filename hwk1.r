@@ -8,7 +8,7 @@ queue <- function(lambda, mu, N, customer) {
     services <- rexp(customer,rate=mu)
     
     for (j in 2:customer) {
-      waits[j,] <- (waits[j-1,] + services[j-1] - arrivals[j])
+      waits[j,] <- max(0,(waits[j-1,] + services[j-1] - arrivals[j]))
     }
     
     queueTimes[i] <- waits[customer,]
@@ -43,7 +43,7 @@ meanvar <- function (results, N) {
 sample <- queue(.9,1,100,2)
 results <- NULL
 for (i in 1:100) {
-  if (sample[i,] <= 0) {
+  if (sample[i,] == 0) {
     results[i] = 1
   } else if (sample[i,] > 0) {
     results[i] = 0
@@ -56,7 +56,7 @@ summary <- meanvar(results,100)
 sample2 <- queue(.9,1,1000,2)
 results2 <- NULL
 for (i in 1:1000) {
-  if (sample2[i,] <= 0) {
+  if (sample2[i,] == 0) {
     results2[i] = 1
   } else if (sample2[i,] > 0) {
     results2[i] = 0
@@ -69,7 +69,7 @@ summary2 <- meanvar(results2,1000)
 sample3 <- queue(.9,1,10000,2)
 results3 <- NULL
 for (i in 1:10000) {
-  if (sample3[i,] <= 0) {
+  if (sample3[i,] == 0) {
     results3[i] = 1
   } else if (sample3[i,] > 0) {
     results3[i] = 0
