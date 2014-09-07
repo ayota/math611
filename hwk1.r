@@ -1,85 +1,25 @@
-#input variables
-#lamda = rate of T (Interarrival time)
-#mu = rate of S (Service time)
-#S = Service time for ith person
-#T = Interarrival time for ith person
-#W = Wait time for ith person
-#customer = number of customer of interest
-#N = number of samples
-#wait = wait time is > than (i.e. c)
-
-
-genQueue <- function (mu,lamda, N) {
-
-#create matrix for S/T RVs
-arrivals <- matrix(0, 100, 2, byrow =TRUE)
-services <- matrix(0, 99, 2, byrow =TRUE)
-#mu <- .01
-#lamda <- .09
-
-#fill out values for service time
-services <- rexp(100,rate=mu)
-
-#fill out values for interarrival time
-arrivals <- rexp(100,rate=lamda)
-
-#Loop over service/interrival times to calculate wait times
-
-#generate matrix to store wait times
-waiting <- matrix(0, 100, 1, byrow =TRUE)
-
-#skipping W1, we calculate the wait times for subsequent customers
-
-for (i in 2:100){
-  waiting[i] <- (waiting[i-1] + services[i-1] - arrivals[i])
-}
-
-#Repeat function for desired number of times and store all results in n x 100 matrix
-#create the matrix to hold the wait times
-waitimes <- NULL
-
-#fill the matrix with values
-for (i in 1:N) {
-  sample <- generateTimes(mu,lamda)
-  waitimes[i] <- sample[100]
-}
-
-return(waitimes)
-}
-
-#this function takes 3.242 seconds with 10,000 samples, .32 seconds with 1000
-system.time(sample <- generatewaits(10000,1,.9))
-
-
-#Test list of waiting times for desired customer to see whether it is over/under desired waiting period
-#takes params wait (length of wait testing) / customer (whose wait time calculating) / N (no. of simulations)
-#also takes a 100 by n matrix of values to test
-
-sample <-genQueue(1000,1,.9)
-
-testResults <- function (wait, customer, N, sample) {
-
-for (i in 1:N) {
-  if (sample[customer,i] > wait){
-    results[i] <- 1
-  } else {
-    results[i] <- 0
+###PART C###
+queue <- function(lambda, mu, N, customer) {
+  queueTimes <- matrix(0, N)
+  
+  for (i in 1:N) {
+    waits <- matrix(0,customer,1)
+    arrivals <-rexp(customer,rate=lambda)
+    services <- rexp(customer,rate=mu)
+    
+    for (j in 2:customer) {
+      waits[j,] <- (waits[j-1,] + services[j-1] - arrivals[j])
+    }
+    
+    queueTimes[i] <- waits[customer,]
   }
+  
+  return(queueTimes)
 }
 
-return(results)
-}
 
-
-results2 <- NULL
-y <- matrix(1, 100, 1)
-results2 <- y[sample > 0]
-
-
-
-
-#This function calculates the mean, variance, error, and confidence interval (95%)
-#it takes a matrix of result values
+###PART D###
+###MEAN, VARIANCE, AND CI FUNCTION###
 meanvar <- function (results, N) {
   
   mean <- sum(results)/N
@@ -99,20 +39,101 @@ meanvar <- function (results, N) {
   return(totals)
 }
 
-#histogram of the distribution of 10,000 simulations for W100
-sample <-genQueue(10000,1,.9)
-w100 <- sample
-
-w100hist <- hist(w100)
-
-#QQplot
-w100qq <- qqnorm(w100)
-w100qq <- qqline(w100,col = 2,lwd=2,lty=2)
-
-#histogram of m
-w100s <- NULL
-
-for(i in 1:100) {
-  sample <- genQueue(1000, 1, .9)
-  w100s <- sum(sample)/1000
+##calculate P(W2 = 0) for N = 100##
+sample <- queue(.9,1,100,2)
+results <- NULL
+for (i in 1:100) {
+  if (sample[i,] <= 0) {
+    results[i] = 1
+  } else if (sample[i,] > 0) {
+    results[i] = 0
+  }
 }
+
+summary <- meanvar(results,100)
+
+##calculate P(W2 = 0) for N = 1000##
+sample2 <- queue(.9,1,1000,2)
+results2 <- NULL
+for (i in 1:1000) {
+  if (sample2[i,] <= 0) {
+    results2[i] = 1
+  } else if (sample2[i,] > 0) {
+    results2[i] = 0
+  }
+}
+
+summary2 <- meanvar(results2,1000)
+
+##calculate P(W2 = 0) for N = 10000##
+sample3 <- queue(.9,1,10000,2)
+results3 <- NULL
+for (i in 1:10000) {
+  if (sample3[i,] <= 0) {
+    results3[i] = 1
+  } else if (sample3[i,] > 0) {
+    results3[i] = 0
+  }
+}
+
+summary3 <- meanvar(results3,10000)
+
+##calculate P(W100 = 0) for N = 100##
+sample4 <- queue(.9,1,100,100)
+results4 <- NULL
+for (i in 1:100) {
+  if (sample4[i,] <= 0) {
+    results4[i] = 1
+  } else if (sample4[i,] > 0) {
+    results4[i] = 0
+  }
+}
+
+summary4 <- meanvar(results4,100)
+
+##calculate P(W100 = 0) for N = 1000##
+sample5 <- queue(.9,1,1000,100)
+results5 <- NULL
+for (i in 1:1000) {
+  if (sample5[i,] <= 0) {
+    results5[i] = 1
+  } else if (sample5[i,] > 0) {
+    results5[i] = 0
+  }
+}
+
+summary5 <- meanvar(results5,1000)
+
+##calculate P(W100 = 0) for N = 10000##
+sample6 <- queue(.9,1,10000,100)
+results6 <- NULL
+for (i in 1:10000) {
+  if (sample6[i,] <= 0) {
+    results6[i] = 1
+  } else if (sample6[i,] > 0) {
+    results6[i] = 0
+  }
+}
+
+summary6 <- meanvar(results6,10000)
+
+###PART E###
+w100s <- queue(.9,1,10000,100)
+
+#histogram of 10,000 simulations of W100#
+w100hist <-hist(w100s)
+
+#qqplot of 10,000 simulations of W100#
+w100qq <- qqnorm(w100s)
+w100qq <- qqline(w100s,col = 2,lwd=2,lty=2)
+
+##PART F##
+m <- NULL
+for (i in 1:10000) {
+  w100 <- queue(.9,1,1000,100)
+  m[i] <- sum(w100)/1000
+}
+
+mhist <- hist(m)
+mqq <- qqnorm(m)
+mqq <- qqline(m,col = 2,lwd=2,lty=2)
