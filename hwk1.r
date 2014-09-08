@@ -30,7 +30,7 @@ meanvar <- function (results, N) {
   var <- (1/N)*sum(variances)
   
   sd <- sqrt(var)
-  error <- qnorm(.95)*sd/sqrt(N)
+  error <- 1.96*sd/sqrt(N)
   left <- mean - error
   right <- mean + error
   
