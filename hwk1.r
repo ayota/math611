@@ -4,6 +4,9 @@
 ##mu-> rate for service times
 ##N-> Desired number of simulations
 ##customer-> desired number of customers in the line
+##This will generate a matrix keeping tabs on the (Col 1) cumulative time since beginning the simulation, 
+##(Col 2) how long each customer must wait, (Col 3) when they will depart the line (cumulative point in time they arrived + 
+##waiting time + service time), and (Col 4) how many total customers are in line at that time.
 
 queue <- function(lambda, mu, N, customer) {
   #list to hold results
@@ -14,13 +17,21 @@ queue <- function(lambda, mu, N, customer) {
   for (i in 1:N) {
     
     #matricies to hold wait times to be generated
-    #names <- c("Current Time", "Waiting Time", "Departure Time", "No. in Line", "Interarrival", "Service")
-    waits <- matrix(0,customer,6,)
+    colnames <- c("Current Time", "Waiting Time", "Departure Time", "No. in Line", "Interarrival", "Service")
+    rownames <- c(1:customer)
+    waits <- matrix(0,customer,6, dimnames = list(rownames,colnames))
     #dimnames(waits) <- list(names,seq(1,customer,1))
     
     #generating exponential RVs to model interarrival times (arrivals) and service times (services)
     arrivals <-rexp(customer,rate=lambda)
     services <- rexp(customer,rate=mu)
+    
+    #initialize all the things
+    waits[1,2] <- 0
+    waits[1,3] <- services[1] + sum(arrivals[1]) + waits[1,2]
+    waits[1,4] <- 1
+    waits[1,5] <- arrivals[1]
+    waits[1,6] <- services[1]
     
     #loop to generate desired number of wait times
     for (j in 2:customer) {
@@ -34,35 +45,30 @@ queue <- function(lambda, mu, N, customer) {
       #W3 = D2 - A3 = W2 + S2 + T1 + T2 - T1 - T2 - T3 = W2 + S2 - T3
       #W4 = D3 - A4 = W3 + S3 + T1 + T2 + T3 -T1 -T2 -T3 - T4 = W3 + S3 - T4
       #We see all terms cancel except for W[i-1], S[i-1], and T[i]
-      waits[j,2] <- max(0,(waits[j-1,] + services[j-1] - arrivals[j]))
+      waits[j,2] <- max(0,(waits[j-1,2] + services[j-1] - arrivals[j]))
       
       #calculating the number of customers at the given time
       #departure times
-      departures <- services[j-1] + sum(arrivals[1:j-1])
-      waits[j-1,3] <- departures
+      waits[j,3] <- services[j] + sum(arrivals[1:j]) + waits[j,2]
       
       #number of people in line
       people <- NULL
+      people <- ifelse(waits[,3] >= sum(arrivals[1:j]), 1, 0)
       
-      for (k in 1:j) {
-        if (departures > (sum(arrivals[1:j]))) {
-          people[k] <- 1 } else if (departures <= (sum(arrivals[1:j]))) {people[k] <- 0}
-      }
       waits[j,4] <- sum(people)
-      
       waits[j,5] <- arrivals[j]
       waits[j,6] <- services[j]
       
     }
-    queueTimes[[i]] <- waits[1:customer,]
-    }
+    queueTimes[[i]] <- waits[1:customer,1:4]
+  }
   
   return(queueTimes)
 }
 
 
 ###PART D###
-###Rewrite of Part C function to be more efficient###
+###Rewrite of Part C function to be more efficient, it will now only return the wait time of the nth customer###
 queue <- function(lambda, mu, N, customer) {
   #matrix to hold times for desired nth customer
   queueTimes <- matrix(0, N)
@@ -87,7 +93,8 @@ queue <- function(lambda, mu, N, customer) {
   
   return(queueTimes)
 }
-###MEAN, VARIANCE, AND CI FUNCTION###
+
+###Function to generate mean, variance, and confidence interval###
 meanvar <- function (results, N) {
   
   mean <- sum(results)/N
