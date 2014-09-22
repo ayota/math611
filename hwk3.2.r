@@ -97,5 +97,88 @@ ascent <- function(starts = c(0,0), target = .01, step = .1) {
   return(rbind(path,x.new))
 }
 
-test <- ascent(testfunction)
+test <- ascent()
 test
+
+##steepest ascent for two component gmm
+##gmm of two normal RVs: N(mu1,var1) w/ prob of p1 & N(mu2,var2) w/ prob p2
+
+
+##initialize the function
+#params to optimize: mu1, mu2, var1, var2, p1, p2
+#by law of total probability, we know p2 = 1-p1
+#params is a vector of 5 initial values, with p2 calculated on the fly
+#this is the combined pdf 
+
+gmmfxn <- function(params) {
+  x <- c(params, 1-params[5])
+  #combined pdf goes here
+  return(y)
+}
+
+##function to calculate the gradient
+#x is a vector of params x1 and x2
+#params is a vector of 6 initial values, with condition p1 + p2 = 1
+#df.dx represents derivative w/ respect to x
+gradient <- function(params) {
+  df.dmu1 <- #partial deriv for mu1
+  df.dmu2 <- #partial deriv for mu2
+  df.dvar1 <- #partial deriv for var1
+  df.dvar2 <- #partial deriv for var2
+  df.dp1 <- #partial deriv for p1
+  df.dp2 <- #partial deriv for p2
+  grad <- c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp1, df.dp2)
+  return(grad)
+}
+
+##function to calculate the norm of the gradient
+norm <- function(grad) {
+  gradnorm = sqrt(sum(grad^2))
+  return(gradnorm)
+}
+
+##steepest ascent algorithm for test function
+##inputs:
+#starts <- start values for all params, as a vector
+#target <- some sufficiently small value
+#step <- how far each step moves
+
+##output: a path for x1/x2 to maximizers
+
+ascent <- function(starts = c(0,0), target = .01, step = .1) {
+  #initializing
+  x.new <- starts
+  grad.new <- gradient(x.new)
+  path <- matrix(0,1,2)
+  gradients <- matrix(0,1,2)
+  
+  #loop will continue testing norm of gradient until it is smaller than the target
+  while (norm(grad.new) > target) {
+    
+    #test to make sure gradient is continuing to get smaller, if not, we decrease step
+    if (grad.new[1] %in% gradients[,1] && grad.new[2] %in% gradients[,2]) {
+      step <- step/2
+    }
+    
+    path <- rbind(path, x.new)  #add new x to previous path
+    
+    #make room for new x/gradient of new x, and store old gradients in matrix of past values
+    x.old <- x.new 
+    grad.old <- grad.new 
+    gradients <- rbind(gradients,grad.old)
+    
+    #calculate the direction of the new x
+    dir <- grad.old/norm(grad.old)
+    
+    #get new x and gradient
+    x.new <- x.old + dir*step
+    grad.new <- gradient(x.new)
+  }
+  
+  return(rbind(path,x.new))
+}
+
+test <- ascent()
+test
+
+
