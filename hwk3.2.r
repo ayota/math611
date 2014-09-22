@@ -57,30 +57,45 @@ norm <- function(grad) {
 }
 
 ##steepest ascent algorithm for test function
-#this doesn't work
-#fxn <- function to be tested (as a function)
-#starts <- start values for all params
+##inputs:
+#starts <- start values for all params, as a vector
 #target <- some sufficiently small value
 #step <- how far each step moves
 
-ascent <- function(fxn) {
+##output: a path for x1/x2 to maximizers
+
+ascent <- function(starts = c(0,0), target = .01, step = .1) {
   #initializing
-  x.new <- c(0,0)
-  target <- .01
-  step <- 1
+  x.new <- starts
   grad.new <- gradient(x.new)
-  path <- NULL
+  path <- matrix(0,1,2)
+  gradients <- matrix(0,1,2)
   
+  #loop will continue testing norm of gradient until it is smaller than the target
   while (norm(grad.new) > target) {
-    path <- c(path, x.new)
-    x.old <- x.new
-    grad.old <- grad.new
+    
+    #test to make sure gradient is continuing to get smaller, if not, we decrease step
+    if (grad.new[1] %in% gradients[,1] && grad.new[2] %in% gradients[,2]) {
+      step <- step/2
+    }
+    
+    path <- rbind(path, x.new)  #add new x to previous path
+    
+    #make room for new x/gradient of new x, and store old gradients in matrix of past values
+    x.old <- x.new 
+    grad.old <- grad.new 
+    gradients <- rbind(gradients,grad.old)
+    
+    #calculate the direction of the new x
     dir <- grad.old/norm(grad.old)
-    move <- dir*step
-    x.new <- x.old + move
+    
+    #get new x and gradient
+    x.new <- x.old + dir*step
     grad.new <- gradient(x.new)
-    print(x.new)
   }
 
-  return(c(path,x.new))
+  return(rbind(path,x.new))
 }
+
+test <- ascent(testfunction)
+test
