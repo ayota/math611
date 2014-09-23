@@ -24,7 +24,7 @@ GMM <- function(N = 100, p1 = .7, p2 = .3, mu1 = 0, mu2 = 3, var1 = 1, var2 = 4)
 
 samples <- GMM(100, p1, p2, mu1, mu2, var1, var2)
 
-histsmaples <- hist(samples, breaks = 10)
+histsamples <- hist(samples, breaks = 10)
 
 ###part b, i###
 
@@ -106,36 +106,71 @@ test
 
 ##initialize the function
 #params to optimize: mu1, mu2, var1, var2, p1, p2
-#by law of total probability, we know p2 = 1-p1
-#params is a vector of 5 initial values, with p2 calculated on the fly
-#this is the combined pdf 
-
-gmmfxn <- function(params) {
-  x <- c(params, 1-params[5])
-  #combined pdf goes here
-  return(y)
-}
+#because p1 + p2 = 1, we define p1 = p, p2 = 1 - p
 
 ##function to calculate the gradient
-#x is a vector of params x1 and x2
-#params is a vector of 6 initial values, with condition p1 + p2 = 1
+#samples is a vector of 100 x's calculated using GMM fxn
+#params is a vector of 5 initial values
 #df.dx represents derivative w/ respect to x
-gradient <- function(params) {
-  df.dmu1 <- #partial deriv for mu1
-  df.dmu2 <- #partial deriv for mu2
-  df.dvar1 <- #partial deriv for var1
-  df.dvar2 <- #partial deriv for var2
-  df.dp1 <- #partial deriv for p1
-  df.dp2 <- #partial deriv for p2
-  grad <- c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp1, df.dp2)
-  return(grad)
+#the partial derivative fxns are compiled to make things go faster
+
+gradient <- function(params = c(0,3,1,4,.3), samples) {
+  mu1 <- params[1]
+  mu2 <- params[2]
+  var1 <- params[3]
+  var2 <- params[4]
+  P <- params[5]
+  
+  grad <-matrix(0, 1, 5)
+  
+  for (i in 1:length(samples)) {
+  #define denominator for all partials
+  R <- (P*(1/sqrt(2*pi*var1))*exp((-(samples[i]-mu1)^2)/(2*var1)) + (1-P)*(1/sqrt(2*pi*var2))*exp((-(samples[i]-mu2)^2)/(2*var2)))
+
+  #numerators
+  #mu1.numerator <- P*(1/sqrt(2*pi*var1))*((samples[i]-mu1)/var1)*exp((-(samples[i]-mu1)^2)/(2*var1))
+  #mu2.numerator <- (1-P)*(1/sqrt(2*pi*var2))*((samples[i]-mu2)/var2)*exp((-(samples[i]-mu2)^2)/(2*var2))
+
+  mu1.numerator <- P*((samples[i]-mu1)*exp((-(mu1-samples[i])^2)/(2*var1))*(1/(sqrt(2*pi)*var1^(3/2))))
+  mu2.numerator <- (1-P)*((samples[i]-mu2)*exp((-(mu2-samples[i])^2)/(2*var2))*(1/(sqrt(2*pi)*var2^(3/2))))
+  
+  #numerators for the var's (need to simplify)
+  var1.numerator <- P*((exp(-(samples[i]-mu1)^2/(2*var1)))*(((-1/2)*(2*pi)^(-1/2)*(var1)^(-3/2)) + (1/sqrt(2*pi*var1))*((samples[i]-mu1)^2/(2*var1^2))))
+  var2.numerator <- (1-P)*((exp(-(samples[i]-mu2)^2/(2*var2)))*(((-1/2)*(2*pi)^(-1/2)*(var2)^(-3/2)) + (1/sqrt(2*pi*var2))*((samples[i]-mu2)^2/(2*var2^2))))
+  
+  #var1.numerator <- P*(exp((-(samples[i]-mu1)^2)/(2*var1))*(-var1 + (-samples[i] + mu1)^2)*(1/(2*sqrt(2*pi)*samples[i]^(5/2))))
+  #var2.numerator <- (1-P)*(exp((-(samples[i]-mu2)^2)/(2*var2))*(-var2 + (-samples[i] + mu2)^2)*(1/(2*sqrt(2*pi)*samples[i]^(5/2))))
+    
+  #numerator for p
+  p.numerator <- (1/sqrt(2*pi*var1))*exp(-(samples[i]-mu1)^2/(2*var1)) - (1/sqrt(2*pi*var2))*exp(-(samples[i]-mu2)^2/(2*var2))
+  
+  df.dmu1 <- mu1.numerator/R
+  df.dmu2 <- mu2.numerator/R
+  df.dvar1 <- var1.numerator/R
+  df.dvar2 <- var2.numerator/R
+  df.dp <- p.numerator/R
+  grad <- rbind(grad,c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp))
 }
+  final <- c(sum(grad[,1]),sum(grad[,2]),sum(grad[,3]),sum(grad[,4]),sum(grad[,5]))
+
+  return(final)
+}
+
+debug(gradient)
+samples <- GMM(100, p1, p2, mu1, mu2, var1, var2)
+testgrad <- gradient(samples = samples[1:100])
+testgrad2 <- gradient(samples = samples[1:100])
+testgrad
+testgrad2
 
 ##function to calculate the norm of the gradient
 norm <- function(grad) {
   gradnorm = sqrt(sum(grad^2))
   return(gradnorm)
 }
+
+debug(norm)
+testnorm <- norm(testgrad)
 
 ##steepest ascent algorithm for test function
 ##inputs:
@@ -145,18 +180,18 @@ norm <- function(grad) {
 
 ##output: a path for x1/x2 to maximizers
 
-ascent <- function(starts = c(0,0), target = .01, step = .1) {
+ascent <- function(starts = c(-.5,2,0,3,.4), target = .01, step = .1) {
   #initializing
   x.new <- starts
-  grad.new <- gradient(x.new)
-  path <- matrix(0,1,2)
-  gradients <- matrix(0,1,2)
+  grad.new <- gradient(x.new, samples[1:100])
+  path <- matrix(0,1,5)
+  norms <- matrix(0,1,1)
   
   #loop will continue testing norm of gradient until it is smaller than the target
   while (norm(grad.new) > target) {
     
     #test to make sure gradient is continuing to get smaller, if not, we decrease step
-    if (grad.new[1] %in% gradients[,1] && grad.new[2] %in% gradients[,2]) {
+    if (norm(grad.new) %in% norms) {
       step <- step/2
     }
     
@@ -165,20 +200,24 @@ ascent <- function(starts = c(0,0), target = .01, step = .1) {
     #make room for new x/gradient of new x, and store old gradients in matrix of past values
     x.old <- x.new 
     grad.old <- grad.new 
-    gradients <- rbind(gradients,grad.old)
+    norms <- rbind(norms,norm(grad.old))
     
     #calculate the direction of the new x
     dir <- grad.old/norm(grad.old)
     
     #get new x and gradient
     x.new <- x.old + dir*step
-    grad.new <- gradient(x.new)
+    #x.new[5] <- ifelse(abs(x.new[5]) >= 1, abs(x.new[5]/10), abs(x.new[5]))
+    grad.new <- gradient(x.new, samples[1:100])
+    print(x.new)
+    print(norm(grad.new))
   }
   
   return(rbind(path,x.new))
 }
 
-test <- ascent()
-test
+testascent <- ascent(starts = c(0,0,1,1,0), target = .05, step = .0001)
 
+testascent
+debug(ascent)
 
