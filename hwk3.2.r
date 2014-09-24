@@ -131,54 +131,72 @@ loglike <- function(params, samples = samples) {
 #df.dx represents derivative w/ respect to x
 #the partial derivative fxns are compiled to make things go faster
 
-gradient <- function(params = c(0,3,1,4,.3), samples) {
+#Partial derivative finding function
+#inputs: single x value
+#output: vector of partials df.mu1, df.mu2, df.var1, df.var2, df.P
+
+#loading the compiler package to hopefully make this run faster
+library(compiler)
+
+#numerator-finding fxns
+mu.numerator <- function(P,mu,var,x) { 
+    numerator <- P*( exp( (-(x-mu)^2)/(2*var) )*( (x - mu) * (sqrt(2*pi*var)*var^(2))^(-1) ) ) 
+    return (numerator)
+  }
+
+var.numerator <- function(P,mu,var, x) { 
+    numerator <- P*( exp( (-(x-mu)^2) * (2*var)^(-1) ) * ( (x - mu)^2 - 1 ) * ( sqrt(8*pi) * var^(1.5) )^(-1) )
+    return(numerator)
+  }
+
+
+p.numerator <- function(P,mu,var,x) {
+    numerator <- (2*pi*var)^(-.5)*exp(-(x-mu)^2 * (2*var)^(-1))
+    return(numerator)
+  }
+
+partializer <- function(x=1,params = c(0,3,1,4,.7)) {
+  #initialize the params
   mu1 <- params[1]
   mu2 <- params[2]
   var1 <- params[3]
   var2 <- params[4]
-  P <- params[5]
+  P1 <- params[5]
+  P2 <- 1-P1
   
-  grad <-matrix(0, 1, 5)
+  #denominator for all partials
+  R <- (P1*(1/sqrt(2*pi*var1))*exp((-(x-mu1)^2)/(2*var1)) + P2*(1/sqrt(2*pi*var2))*exp((-(x-mu2)^2)/(2*var2)))
   
-  for (i in 1:length(samples)) {
-  #define denominator for all partials
-  R <- (P*(1/sqrt(2*pi*var1))*exp((-(samples[i]-mu1)^2)/(2*var1)) + (1-P)*(1/sqrt(2*pi*var2))*exp((-(samples[i]-mu2)^2)/(2*var2)))
-
-  #numerators
-  #mu1.numerator <- P*(1/sqrt(2*pi*var1))*((samples[i]-mu1)/var1)*exp((-(samples[i]-mu1)^2)/(2*var1))
-  #mu2.numerator <- (1-P)*(1/sqrt(2*pi*var2))*((samples[i]-mu2)/var2)*exp((-(samples[i]-mu2)^2)/(2*var2))
-
-  mu1.numerator <- P*((samples[i]-mu1)*exp((-(mu1-samples[i])^2)/(2*var1))*(1/(sqrt(2*pi)*var1^(3/2))))
-  mu2.numerator <- (1-P)*((samples[i]-mu2)*exp((-(mu2-samples[i])^2)/(2*var2))*(1/(sqrt(2*pi)*var2^(3/2))))
-  
-  #numerators for the var's (need to simplify)
-  var1.numerator <- P*((exp(-(samples[i]-mu1)^2/(2*var1)))*(((-1/2)*(2*pi)^(-1/2)*(var1)^(-3/2)) + (1/sqrt(2*pi*var1))*((samples[i]-mu1)^2/(2*var1^2))))
-  var2.numerator <- (1-P)*((exp(-(samples[i]-mu2)^2/(2*var2)))*(((-1/2)*(2*pi)^(-1/2)*(var2)^(-3/2)) + (1/sqrt(2*pi*var2))*((samples[i]-mu2)^2/(2*var2^2))))
-  
-  #var1.numerator <- P*(exp((-(samples[i]-mu1)^2)/(2*var1))*(-var1 + (-samples[i] + mu1)^2)*(1/(2*sqrt(2*pi)*samples[i]^(5/2))))
-  #var2.numerator <- (1-P)*(exp((-(samples[i]-mu2)^2)/(2*var2))*(-var2 + (-samples[i] + mu2)^2)*(1/(2*sqrt(2*pi)*samples[i]^(5/2))))
-    
-  #numerator for p
-  p.numerator <- (1/sqrt(2*pi*var1))*exp(-(samples[i]-mu1)^2/(2*var1)) - (1/sqrt(2*pi*var2))*exp(-(samples[i]-mu2)^2/(2*var2))
-  
-  df.dmu1 <- mu1.numerator/R
-  df.dmu2 <- mu2.numerator/R
-  df.dvar1 <- var1.numerator/R
-  df.dvar2 <- var2.numerator/R
-  df.dp <- p.numerator/R
-  grad <- rbind(grad,c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp))
-}
-  final <- c(sum(grad[,1]),sum(grad[,2]),sum(grad[,3]),sum(grad[,4]),sum(grad[,5]))
-
-  return(final)
+  #calculate all the partials
+  df.dmu1 <- mu.numerator(P1,mu1,var1,x)/R
+  df.dmu2 <- mu.numerator(P2,mu2,var2,x)/R
+  df.dvar1 <- var.numerator(P1,mu1,var1,x)/R
+  df.dvar2 <- var.numerator(P2,mu2,var2,x)/R
+  df.dp <- (p.numerator(P1,mu1,var1,x) - p.numerator(P2,mu2,var2,x))/R
+  grad <- c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp)
+  return(grad)  
 }
 
-debug(gradient)
-samples <- GMM(100, p1, p2, mu1, mu2, var1, var2)
-testgrad <- gradient(samples = samples[1:100])
-testgrad2 <- gradient(samples = samples[1:100])
-testgrad
-testgrad2
+gradient <- function(x.new = c(0,3,1,4,.3), X = samples) {
+  #put the params in the right spots
+  
+  #find the partials for all Xi's
+  grad <-vapply(X, FUN = partializer, params = x.new, c(mu1=0, mu2=0, var1=0, var2=0, P=0))
+  
+  #sum the partials for each parameter
+  grad.sums <- apply(grad, 1, sum)
+  
+  #return vector of the partials for each parameter
+  return(grad.sums)
+}
+
+
+#test to make sure it works
+gradparams1 <- c(-.5,2,1,3,.4)
+testgrad1 <- gradient(gradparams1,samples)
+
+gradparams2 <- c(0,1,3,4,.7)
+testgrad2 <- gradient(gradparams2,samples)
 
 ##function to calculate the norm of the gradient
 norm <- function(grad) {
@@ -186,7 +204,7 @@ norm <- function(grad) {
   return(gradnorm)
 }
 
-debug(norm)
+#making sure it works
 testnorm <- norm(testgrad)
 
 ##steepest ascent algorithm for test function
@@ -196,12 +214,12 @@ testnorm <- norm(testgrad)
 #step <- how far each step moves
 
 ##output: a path for x1/x2 to maximizers
-samples <- GMM(100, p1, p2, mu1, mu2, var1, var2)
+samples <- GMM(100, params)
 
-ascent <- function(starts = c(-.5,2,0,3,.4), target = .01, step = .1) {
+ascent <- function(starts = c(-.5,2,.01,3,.4), target = .01, step = .1) {
   #initializing
-  x.new <- starts
-  grad.new <- gradient(x.new, samples[1:100])
+  params.new <- starts
+  grad.new <- gradient(params.new, samples)
   path <- matrix(0,1,5)
   norms <- matrix(0,1,1)
   
@@ -209,14 +227,14 @@ ascent <- function(starts = c(-.5,2,0,3,.4), target = .01, step = .1) {
   while (norm(grad.new) > target) {
     
     #test to make sure gradient is continuing to get smaller, if not, we decrease step
-    if (norm(grad.new) %in% norms) {
-      step <- step/10
-    }
+    #if (norm(grad.new) %in% norms) {
+     # step <- step/10
+    #}
     
-    path <- rbind(path, x.new)  #add new x to previous path
+    path <- rbind(path, params.new)  #add new x to previous path
     
     #make room for new x/gradient of new x, and store old gradients in matrix of past values
-    x.old <- x.new 
+    params.old <- params.new 
     grad.old <- grad.new 
     norms <- rbind(norms,norm(grad.old))
     
@@ -224,18 +242,31 @@ ascent <- function(starts = c(-.5,2,0,3,.4), target = .01, step = .1) {
     dir <- grad.old/norm(grad.old)
     
     #get new x and gradient
-    x.new <- x.old + dir*step
+    params.new <- params.old + dir*step
     #x.new[5] <- ifelse(abs(x.new[5]) >= 1, abs(x.new[5]/10), abs(x.new[5]))
-    grad.new <- gradient(x.new, samples[1:100])
-    print(x.new)
+    grad.new <- gradient(params.new, samples)
+    print(params.new)
     print(norm(grad.new))
   }
   
-  return(rbind(path,x.new))
+  return(path)
 }
 
-testascent <- ascent(starts = c(-.1,2.8,.8,3.8,.5), target = .05, step = .0001)
+#compile all the functions
+cmpfun(loglike)
+cmpfun(mu.numerator)
+cmpfun(var.numerator)
+cmpfun(p.numerator)
+cmpfun(partializer)
+cmpfun(gradient)
+cmpfun(norm)
+cmpfun(ascent)
 
-fhtestascent
-debug(ascent)
+samples <- GMM(100, params)
+
+testascent <- ascent(starts = c(-1,2.5,.5,3,.4), target = .01, step = .005)
+
+
+undebug(partializer)
+undebug(gradient)
 
