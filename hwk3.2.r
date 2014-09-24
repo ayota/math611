@@ -140,17 +140,20 @@ library(compiler)
 
 #numerator-finding fxns
 mu.numerator <- function(P,mu,var,x) { 
-    numerator <- P*( exp( (-(x-mu)^2)/(2*var) )*( (x - mu) * (sqrt(2*pi*var)*var^(2))^(-1) ) ) 
+    numerator <- P*( ((2*pi*var)^-.5) * exp(-(x-mu)^2/(2*var)) * 2*(x-mu))
     return (numerator)
   }
 
+
+
+
 var.numerator <- function(P,mu,var, x) { 
-    numerator <- P*( exp( (-(x-mu)^2) * (2*var)^(-1) ) * ( (x - mu)^2 - 1 ) * ( sqrt(8*pi) * var^(1.5) )^(-1) )
+    numerator <- P/(sqrt(2*pi)*var^4)*exp(-(x-mu)^2/(2*var))*(var^2.5*(-x+mu)-.5*var^2.5 +.5*var^1.5*(x-mu)^2)
     return(numerator)
   }
 
 
-p.numerator <- function(P,mu,var,x) {
+p.numerator <- function(mu,var,x) {
     numerator <- (2*pi*var)^(-.5)*exp(-(x-mu)^2 * (2*var)^(-1))
     return(numerator)
   }
@@ -163,16 +166,15 @@ partializer <- function(x=1,params = c(0,3,1,4,.7)) {
   var2 <- params[4]
   P1 <- params[5]
   P2 <- 1-P1
-  
   #denominator for all partials
-  R <- (P1*(1/sqrt(2*pi*var1))*exp((-(x-mu1)^2)/(2*var1)) + P2*(1/sqrt(2*pi*var2))*exp((-(x-mu2)^2)/(2*var2)))
+  R <- (P1*(1/sqrt(2*pi*var1))*exp((-(x-mu1)^2)/(2*var1)) + (1-P1)*(1/sqrt(2*pi*var2))*exp((-(x-mu2)^2)/(2*var2)))
   
   #calculate all the partials
   df.dmu1 <- mu.numerator(P1,mu1,var1,x)/R
   df.dmu2 <- mu.numerator(P2,mu2,var2,x)/R
   df.dvar1 <- var.numerator(P1,mu1,var1,x)/R
   df.dvar2 <- var.numerator(P2,mu2,var2,x)/R
-  df.dp <- (p.numerator(P1,mu1,var1,x) - p.numerator(P2,mu2,var2,x))/R
+  df.dp <- (p.numerator(mu1,var1,x)/R - p.numerator(mu2,var2,x)/R)
   grad <- c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp)
   return(grad)  
 }
@@ -192,11 +194,13 @@ gradient <- function(x.new = c(0,3,1,4,.3), X = samples) {
 
 
 #test to make sure it works
-gradparams1 <- c(-.5,2,1,3,.4)
-testgrad1 <- gradient(gradparams1,samples)
+gradparams1 <- c(0, 3, 1, 4,.3)
+testgrad3 <- gradient(gradparams1,samples)
 
+
+c(0, 3, 1, 4,.3)
 gradparams2 <- c(0,1,3,4,.7)
-testgrad2 <- gradient(gradparams2,samples)
+testgrad4 <- gradient(gradparams2,samples)
 
 ##function to calculate the norm of the gradient
 norm <- function(grad) {
@@ -222,9 +226,11 @@ ascent <- function(starts = c(-.5,2,.01,3,.4), target = .01, step = .1) {
   grad.new <- gradient(params.new, samples)
   path <- matrix(0,1,5)
   norms <- matrix(0,1,1)
+  count <- 0
+  grad.old <- 0
   
   #loop will continue testing norm of gradient until it is smaller than the target
-  while (norm(grad.new) > target) {
+  while (abs(norm(grad.new) - norm(grad.old)) > target) {
     
     #test to make sure gradient is continuing to get smaller, if not, we decrease step
     #if (norm(grad.new) %in% norms) {
@@ -244,11 +250,11 @@ ascent <- function(starts = c(-.5,2,.01,3,.4), target = .01, step = .1) {
     #get new x and gradient
     params.new <- params.old + dir*step
     #x.new[5] <- ifelse(abs(x.new[5]) >= 1, abs(x.new[5]/10), abs(x.new[5]))
+    
+    #count <- count + 1
+    #if(count > 10000) {break}
     grad.new <- gradient(params.new, samples)
-    print(params.new)
-    print(norm(grad.new))
   }
-  
   return(path)
 }
 
@@ -262,11 +268,23 @@ cmpfun(gradient)
 cmpfun(norm)
 cmpfun(ascent)
 
-samples <- GMM(100, params)
+samples <- GMM(1000, params)
 
-testascent <- ascent(starts = c(-1,2.5,.5,3,.4), target = .01, step = .005)
+testascent <- ascent(starts = c(-.1,2.8,.8,3.8,.5), target = .001, step = .005)
 
 
-undebug(partializer)
-undebug(gradient)
+#let's see how we did
+logs <- NULL
 
+for(i in 2:length(testascent[,1])) {
+  log <- loglike(testascent[i,],samples) 
+  logs <- c(logs,log) 
+}
+
+plot(logs)
+tail(testascent)
+
+mean(samples[1:70])
+mean(samples[30:100])
+sd(samples[1:70])
+sd(samples[30:100])
