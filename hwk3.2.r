@@ -7,22 +7,21 @@ params <- c(0, 3, 1, 4,.7)
 
 GMM <- function(N = 100, params = c(0, 3, 1, 4,.7)) {
   #generate 100 uniform RVs to represent test for normal 1 or normal 2
-  set.seed(100)
+  set.seed(40)
   X <- as.vector(runif(N))
   
   #now apply the condition if uniform < p1, we assign normal 1, if greater assign normal 2
-  set.seed(100)
+  set.seed(40)
   sapply(X, FUN = function(x) {if (x < params[5]) rnorm(1, mean = params[1], sd = sqrt(params[3])) else rnorm(1, mean = params[2], sd = sqrt(params[4]))})
   
   return(X)
 }
 
 samples <- GMM(100, params)
-
-histsamples <- hist(samples, breaks = 10)
+plot(density(samples), xlab='Kernel Density plot of X',main='')
 
 ###part b, ii: steepest ascent algorithm###
-#this finds the mle estimator for a given function
+#this finds the maximum for a given function
 
 ##test function for f(x1,x2) = -(10-x1)^2 - (5-x2)^2
 ##initialize the function
@@ -138,142 +137,131 @@ loglike <- function(params, samples = samples) {
 #loading the compiler package to hopefully make this run faster
 library(compiler)
 
-#numerator-finding fxns
-mu.numerator <- function(P,mu,var,x) { 
-    numerator <- P*( ((2*pi*var)^-.5) * exp(-(x-mu)^2/(2*var)) * 2*(x-mu))
-    return (numerator)
-  }
-
-
-
-
-var.numerator <- function(P,mu,var, x) { 
-    numerator <- P/(sqrt(2*pi)*var^4)*exp(-(x-mu)^2/(2*var))*(var^2.5*(-x+mu)-.5*var^2.5 +.5*var^1.5*(x-mu)^2)
-    return(numerator)
-  }
-
-
-p.numerator <- function(mu,var,x) {
-    numerator <- (2*pi*var)^(-.5)*exp(-(x-mu)^2 * (2*var)^(-1))
-    return(numerator)
-  }
-
 partializer <- function(x=1,params = c(0,3,1,4,.7)) {
   #initialize the params
   mu1 <- params[1]
   mu2 <- params[2]
   var1 <- params[3]
   var2 <- params[4]
-  P1 <- params[5]
-  P2 <- 1-P1
-  #denominator for all partials
-  R <- (P1*(1/sqrt(2*pi*var1))*exp((-(x-mu1)^2)/(2*var1)) + (1-P1)*(1/sqrt(2*pi*var2))*exp((-(x-mu2)^2)/(2*var2)))
+  P <- params[5]
   
-  #calculate all the partials
-  df.dmu1 <- mu.numerator(P1,mu1,var1,x)/R
-  df.dmu2 <- mu.numerator(P2,mu2,var2,x)/R
-  df.dvar1 <- var.numerator(P1,mu1,var1,x)/R
-  df.dvar2 <- var.numerator(P2,mu2,var2,x)/R
-  df.dp <- (p.numerator(mu1,var1,x)/R - p.numerator(mu2,var2,x)/R)
+  #denominator for all partials
+  R <- (P*(1/sqrt(2*pi*var1))*exp((-(x-mu1)^2)/(2*var1)) + (1-P)*(1/sqrt(2*pi*var2))*exp((-(x-mu2)^2)/(2*var2)))
+  
+  #numerators  
+  mu1.numerator <- P*((x-mu1)*exp((-(mu1-x)^2)/(2*var1))*(1/(sqrt(2*pi)*var1^(3/2))))
+  mu2.numerator <- (1-P)*((x-mu2)*exp((-(mu2-x)^2)/(2*var2))*(1/(sqrt(2*pi)*var2^(3/2))))
+  
+  #numerators for the var's
+  var1.numerator <- P*((exp(-(x-mu1)^2/(2*var1)))*(((-1/2)*(2*pi)^(-1/2)*(var1)^(-3/2)) + (1/sqrt(2*pi*var1))*((x-mu1)^2/(2*var1^2))))
+  var2.numerator <- (1-P)*((exp(-(x-mu2)^2/(2*var2)))*(((-1/2)*(2*pi)^(-1/2)*(var2)^(-3/2)) + (1/sqrt(2*pi*var2))*((x-mu2)^2/(2*var2^2))))
+  
+  #numerator for p
+  p.numerator <- (1/sqrt(2*pi*var1))*exp(-(x-mu1)^2/(2*var1)) - (1/sqrt(2*pi*var2))*exp(-(x-mu2)^2/(2*var2))
+  
+  df.dmu1 <- mu1.numerator/R
+  df.dmu2 <- mu2.numerator/R
+  df.dvar1 <- var1.numerator/R
+  df.dvar2 <- var2.numerator/R
+  df.dp <- p.numerator/R
   grad <- c(df.dmu1,df.dmu2, df.dvar1,df.dvar2,df.dp)
   return(grad)  
 }
 
-gradient <- function(x.new = c(0,3,1,4,.3), X = samples) {
-  #put the params in the right spots
-  
-  #find the partials for all Xi's
-  grad <-vapply(X, FUN = partializer, params = x.new, c(mu1=0, mu2=0, var1=0, var2=0, P=0))
-  
-  #sum the partials for each parameter
-  grad.sums <- apply(grad, 1, sum)
-  
-  #return vector of the partials for each parameter
-  return(grad.sums)
-}
-
-
-#test to make sure it works
-gradparams1 <- c(0, 3, 1, 4,.3)
-testgrad3 <- gradient(gradparams1,samples)
-
-
-c(0, 3, 1, 4,.3)
-gradparams2 <- c(0,1,3,4,.7)
-testgrad4 <- gradient(gradparams2,samples)
-
-##function to calculate the norm of the gradient
-norm <- function(grad) {
-  gradnorm = sqrt(sum(grad^2))
-  return(gradnorm)
-}
-
-#making sure it works
-testnorm <- norm(testgrad)
+partializer()
+debug(partializer)
 
 ##steepest ascent algorithm for test function
 ##inputs:
 #starts <- start values for all params, as a vector
 #target <- some sufficiently small value
 #step <- how far each step moves
-
-##output: a path for x1/x2 to maximizers
-samples <- GMM(100, params)
+##output: a path to maximizers
 
 ascent <- function(starts = c(-.5,2,.01,3,.4), target = .01, step = .1) {
   #initializing
   params.new <- starts
-  grad.new <- gradient(params.new, samples)
+  grad <-vapply(samples, FUN = partializer, params = params.new, c(mu1=0, mu2=0, var1=0, var2=0, P=0))
+  #sum the partials for each parameter
+  grad.new <- apply(grad, 1, sum)
   path <- matrix(0,1,5)
-  norms <- matrix(0,1,1)
-  count <- 0
-  grad.old <- 0
   
   #loop will continue testing norm of gradient until it is smaller than the target
-  while (abs(norm(grad.new) - norm(grad.old)) > target) {
-    
-    #test to make sure gradient is continuing to get smaller, if not, we decrease step
-    #if (norm(grad.new) %in% norms) {
-     # step <- step/10
-    #}
-    
-    path <- rbind(path, params.new)  #add new x to previous path
-    
+  while(norm(grad.new) > target) {
     #make room for new x/gradient of new x, and store old gradients in matrix of past values
     params.old <- params.new 
     grad.old <- grad.new 
-    norms <- rbind(norms,norm(grad.old))
     
-    #calculate the direction of the new x
-    dir <- grad.old/norm(grad.old)
+    #calculate the direction of the new params -> gradient/norm(gradient)
+    dir <- grad.old/sqrt(sum(grad.old^2))
     
     #get new x and gradient
     params.new <- params.old + dir*step
-    #x.new[5] <- ifelse(abs(x.new[5]) >= 1, abs(x.new[5]/10), abs(x.new[5]))
     
-    #count <- count + 1
-    #if(count > 10000) {break}
-    grad.new <- gradient(params.new, samples)
+    #calculate the new gradient
+    grad <-vapply(samples, FUN = partializer, params = params.new, c(mu1=0, mu2=0, var1=0, var2=0, P=0))
+    
+    #sum the partials for each parameter
+    grad.new <- apply(grad, 1, sum)
+    
+    path <- rbind(path, params.new)  #add new x to previous path
+    print(sqrt(sum(grad.new^2)))
   }
+  
   return(path)
 }
 
 #compile all the functions
 cmpfun(loglike)
-cmpfun(mu.numerator)
-cmpfun(var.numerator)
-cmpfun(p.numerator)
 cmpfun(partializer)
-cmpfun(gradient)
-cmpfun(norm)
 cmpfun(ascent)
 
-samples <- GMM(1000, params)
+samples <- GMM(100, params)
 
-testascent <- ascent(starts = c(-.1,2.8,.8,3.8,.5), target = .001, step = .005)
+#picking start values
+mean(samples[1:50])
+mean(samples[51:100])
+
+(sd(samples[1:50]))^2
+(sd(samples[51:100]))^2
+
+testascent <- ascent(starts = c(1,2,2,3,.6), target = .001, step = .005)
+
+##results
+#1. mean-based start values (.47,.54,.09,.08,.2); target: .05, step: .001:
+mu1           mu2          var1          var2             P 
+4.380648e-01  2.449892e-01  5.881775e-02 -8.600320e-10  1.926030e-01
+The function broke when it hit a negative variance
+
+##2. adjustments: ascent(starts = c(-.47,.54,.09,1,.5), target = .05, step = .0001)
+mu1           mu2          var1          var2             P 
+2.449371e-01  4.870598e-01 -6.413616e-12  9.085580e-01  6.289717e-01 
+Again, the function broke due to negative variance
+
+##3. adjustments: ascent(starts = c(-.47,.54,1,1,.5), target = .01, step = .0005)
+mu1           mu2          var1          var2             P 
+-2.153894e-01  2.449835e-01  8.592564e-01 -1.530928e-08  9.038035e-02 
+Same.
+
+##4. adjustments: ascent(starts = c(0,2.5,1,2,.4), target = .01, step = .005)
+Same.
+
+##5. adjustments: ascent(starts = c(1,2,2,3,.6), target = .1, step = .005)
+This function actually converged. This is what the log-likelihood looked like:
+
+trial5 <- plot(logs, type="l", xlim=c(-50,700))
+
+final values:
+params.new 0.2559808 2.229812 0.07232859 2.989853 2.374016
+
+##6. adjustments: ascent(starts = c(1,2,2,3,.6), target = .1, step = .005)
+This function actually converged. This is what the log-likelihood looked like:
+  
+trial6 <- plot(logs, type="l", xlim=c(-50,700))
 
 
-#let's see how we did
+
+#code to plot log-likelihoods
 logs <- NULL
 
 for(i in 2:length(testascent[,1])) {
@@ -284,7 +272,3 @@ for(i in 2:length(testascent[,1])) {
 plot(logs)
 tail(testascent)
 
-mean(samples[1:70])
-mean(samples[30:100])
-sd(samples[1:70])
-sd(samples[30:100])
