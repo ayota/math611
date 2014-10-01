@@ -30,7 +30,7 @@ pvalue(100)
 heights.all <- read.table("~/Desktop/MTH611/heights.txt", header=TRUE, quote="\"")
 
 heights <- heights.all$Height
-means <- c(50,90)
+means <- c(49,90)
 norm <- function(x,mean) {
   norm <- sqrt(sum((x-mean)^2))
   return(norm)
@@ -85,8 +85,13 @@ mu.male <- mean(subset(heights.all$Height, heights.all$Gender==2))
 print(c(mu.female, mu.male))
 mymeans$means
 
-#comparing to actual genders
-cbind(mymeans$cluster,heights.all$Gender)
-
 #graphing distances
 plot(x=mymeans$distances, type ="l", ylab = "Value of f(x)", xlab = "Iteration")
+
+#comparing to actual genders
+diffs <- ifelse(mymeans$cluster == heights.all$Gender, 0, 1)
+sum(diffs)
+#classifies 87/100 correctly
+
+
+
