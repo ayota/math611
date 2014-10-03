@@ -145,6 +145,7 @@ loglike <- function(x,mu.one,mu.two,sigma.one,sigma.two,p) {
 
 plot(path[2:183,6], ylim=c(-281.6,-281.46))
 
+
 #part c ii
 mu1 <- path[183,1]
 mu2 <- path[183,2]
@@ -152,7 +153,7 @@ sig1 <- path[183,3]
 sig2 <- path[183,4]
 p <- path[183,5]
 
-r1 <- sum(p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1))) / sum((p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))))
-r2 <- sum((1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))) / sum((p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))))
-
-
+r1 <- p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
+r2 <- (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
+class <- ifelse (r1 > r2, 1, 2)
+diffs <- sum(ifelse(class == hope$Gender, 1, 0))
