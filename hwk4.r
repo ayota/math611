@@ -93,5 +93,66 @@ diffs <- ifelse(mymeans$cluster == heights.all$Gender, 0, 1)
 sum(diffs)
 #classifies 87/100 correctly
 
+heights <- hope$Height
+
+#using hint in reading, I made the starting variance the variance of the entire sample, and the starting mu's two random values from the sample
+params <- c(65, 74, 16, 17, .5) #mu1, mu2, sig1, sig2, p
+
+EM.est <- function(x, params) {
+  x <-heights
+  mu1 <- params[1]
+  mu2 <- params[2]
+  sig1 <- params[3]
+  sig2 <- params[4]
+  p <- params[5]
+  log <- loglike(x, mu1, mu2, sig1, sig2, p)
+  path <- NULL
+
+  #while (abs(path[i,1] - path[i-1,1]) > .01 | abs(path[i,2] - path[i-1,2]) > .01 | abs(path[i,3] - path[i-1,3]) > .01 | abs(path[i,4] - path[i-1,4]) > .01 ) 
+  
+  #the while loop runs until the path starts to repeat
+  while (!(mu1 %in% path) | !(mu2 %in% path) | !(sig1 %in% path) | !(sig2 %in% path)  ) {
+    path <- rbind(path,c(mu1, mu2, sig1, sig2, p, log))
+    
+  #expectation step
+  r1 <- p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
+  r2 <- (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
+  
+  #maximization step
+  mu1 <- sum((1-r1) * x)/sum((1-r1))
+  mu2 <- sum(r1 * x)/sum(r1)
+  
+  sig1 <- sum((1-r1) * (x-mu1)^2)/sum(1-r1)
+  sig2 <- sum(r1 * (x-mu2)^2)/sum(r1)
+  
+  p <- 1/100 * sum(r1)
+  p2 <- 1/100 * sum(r2)
+    
+  log <- loglike(x, mu1, mu2, sig1, sig2, p)
+  
+  }
+
+  return(path)
+}
+
+path <- EM.est(heights, params)
+
+#graph log likelihood
+loglike <- function(x,mu.one,mu.two,sigma.one,sigma.two,p) {
+  fxn <- sum( log(p*(1/sqrt(2*pi*sigma.one))*exp(-(x-mu.one)^2/(2*sigma.one)) + (1-p)*(1/sqrt(2*pi*sigma.two))*exp(-(x-mu.two)^2/(2*sigma.two))) )
+  return(fxn)
+}
+
+plot(path[2:183,6], ylim=c(-281.6,-281.46))
+
+#part c ii
+mu1 <- path[183,1]
+mu2 <- path[183,2]
+sig1 <- path[183,3]
+sig2 <- path[183,4]
+p <- path[183,5]
+
+r1 <- sum(p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1))) / sum((p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))))
+r2 <- sum((1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))) / sum((p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1))))
 
 
