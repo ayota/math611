@@ -96,7 +96,7 @@ sum(diffs)
 heights <- hope$Height
 
 #using hint in reading, I made the starting variance the variance of the entire sample, and the starting mu's two random values from the sample
-params <- c(65, 74, 16, 17, .5) #mu1, mu2, sig1, sig2, p
+params <- c(61, 77, 16, 17, .5) #mu1, mu2, sig1, sig2, p
 
 EM.est <- function(x, params) {
   x <-heights
@@ -106,36 +106,40 @@ EM.est <- function(x, params) {
   sig2 <- params[4]
   p <- params[5]
   log <- loglike(x, mu1, mu2, sig1, sig2, p)
-  path <- NULL
+  path <- rbind(c(0,0,0,0,0,0),c(mu1, mu2, sig1, sig2, p, log))
+  i <- 2
 
-  #while (abs(path[i,1] - path[i-1,1]) > .01 | abs(path[i,2] - path[i-1,2]) > .01 | abs(path[i,3] - path[i-1,3]) > .01 | abs(path[i,4] - path[i-1,4]) > .01 ) 
+  while (abs(path[i,1] - path[i-1,1]) > .01 | abs(path[i,2] - path[i-1,2]) > .01 ) {
   
   #the while loop runs until the path starts to repeat
-  while (!(mu1 %in% path) | !(mu2 %in% path) | !(sig1 %in% path) | !(sig2 %in% path)  ) {
-    path <- rbind(path,c(mu1, mu2, sig1, sig2, p, log))
+  #while (!(mu1 %in% path) | !(mu2 %in% path) | !(sig1 %in% path) | !(sig2 %in% path)  ) 
     
   #expectation step
   r1 <- p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
   r2 <- (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
   
   #maximization step
-  mu1 <- sum((1-r1) * x)/sum((1-r1))
-  mu2 <- sum(r1 * x)/sum(r1)
+  mu1 <- sum((r1) * x)/sum((r1))
+  mu2 <- sum(r2 * x)/sum(r2)
   
-  sig1 <- sum((1-r1) * (x-mu1)^2)/sum(1-r1)
-  sig2 <- sum(r1 * (x-mu2)^2)/sum(r1)
+  sig1 <- sum((r1) * (x-mu1)^2)/sum(r1)
+  sig2 <- sum(r2 * (x-mu2)^2)/sum(r2)
   
-  p <- 1/100 * sum(r1)
-  p2 <- 1/100 * sum(r2)
+  p <- 1/100 * sum(r2)
+  p2 <- 1/100 * sum(r1)
     
   log <- loglike(x, mu1, mu2, sig1, sig2, p)
-  
+  i <- i + 1
+  path <- rbind(path,c(mu1, mu2, sig1, sig2, p, log))
+  print(path)
   }
 
   return(path)
 }
 
+debug(EM.est)
 path <- EM.est(heights, params)
+undebug(EM.est)
 
 #graph log likelihood
 loglike <- function(x,mu.one,mu.two,sigma.one,sigma.two,p) {
@@ -143,17 +147,18 @@ loglike <- function(x,mu.one,mu.two,sigma.one,sigma.two,p) {
   return(fxn)
 }
 
-plot(path[2:183,6], ylim=c(-281.6,-281.46))
+plot(path[2:11,6]) #, ylim=c(-281.6,-281.46))
 
 
 #part c ii
-mu1 <- path[183,1]
-mu2 <- path[183,2]
-sig1 <- path[183,3]
-sig2 <- path[183,4]
-p <- path[183,5]
+x <- heights.all$Height
+mu1 <- path[11,1]
+mu2 <- path[11,2]
+sig1 <- path[11,3]
+sig2 <- path[11,4]
+p <- path[11,5]
 
 r1 <- p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
 r2 <- (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)) / (p*(sqrt(2*pi*sig1)^(-1))*exp((-(x-mu1)^2)*(2*sig1)^(-1)) + (1-p)*(sqrt(2*pi*sig2)^(-1))*exp((-(x-mu2)^2)*(2*sig2)^(-1)))
 class <- ifelse (r1 > r2, 1, 2)
-diffs <- sum(ifelse(class == hope$Gender, 1, 0))
+diffs <- sum(ifelse(class == heights.all$Gender, 1, 0))
