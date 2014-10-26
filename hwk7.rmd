@@ -56,7 +56,7 @@ likelihood <- function(p,x = samples) {
 p <- seq(0,1,.001)
 
 samples2 <- sapply(p, function(p) likelihood(p=p))
-qplot(p, samples2, main = "Full Path Over Pi") + xlab("Values of pi") + ylab("Log-likelihood")
+qplot(p, samples2, main = "Full Path Over Pi") + xlab("Values of pi") + ylab("Likelihood")
 ```
 
 <p>The function shows a maximum at $\pi =$ `r p[which.max(samples2)]`.</p>
