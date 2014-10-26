@@ -1,0 +1,173 @@
+Homework 7
+========================================================
+
+```{r packages, echo=FALSE, include=FALSE}
+library(ggplot2)
+o_ring_data <- read.table("C:/Users/ea538/Downloads/o_ring_data.txt", header=T, quote="\"")
+```
+
+2.
+(a)
+$$ P(data | \pi_{1})=L(\pi_{1}) $$
+$$ L(\pi_{1}) = \prod_{i=1}^{n} ((\pi_{1})f(x_{i}|\mu = 1, \sigma^{2} = 1) + (1-\pi_{1})f(x_{i}|\mu = 3, \sigma^{2} = 1.5)) $$
+
+
+(b)
+```{r gmm}
+GMM <- function() {
+  X <- runif(1)
+  if (X <= .3) {
+    return(rnorm(1, mean = 1, sd = 1))
+    } else {
+      return(rnorm(1, mean = 3, sd = sqrt(1.5)))
+      }
+  return(X)
+  }
+```
+
+```{r b.plots}
+samples <- sapply(1:100, function(x) GMM())
+plot(density(samples), xlab='Kernel Density plot of X',main='')
+```
+
+(c)
+$$ L(\pi_{1})) = \prod_{i=1}^{n} ((\pi_{1})f(x_{i}|\mu = 1, \sigma^{2} = 1) + (1-\pi_{1})f(x_{i}|\mu = 3, \sigma^{2} = 1.5)) $$
+
+```{r echo=FALSE}
+# $$ (\frac{d}{d\pi}) = (d/d\pi)(log(\prod_{i=1}^{n} ((\pi_{1})f(x_{i}|\mu = 1, \sigma^{2} = 1) + (1-\pi_{1})f(x_{i}|\mu = 3, \sigma^{2} = 1.5)))) $$
+# $$ (\frac{d}{d\pi}) = \sum_{i=1}^{n} \frac{f(x_{i}|\mu = 1, \sigma^{2} = 1) - f(x_{i}|\mu = 3, \sigma^{2} = 1.5)}{((\pi_{1})f(x_{i}|\mu = 1, \sigma^{2} = 1) + (1-\pi_{1})f(x_{i}|\mu = 3, \sigma^{2} = 1.5))} $$
+  
+```
+
+```{r loglike}
+# loglike <- function(p,x = samples) {
+#   L <- sum((dnorm(x, mean = 1, sd = 1) - dnorm(x, mean = 3, sd = sqrt(1.5)))/(p*dnorm(x, mean = 1, sd = 1) + (1-p)*dnorm(x, mean = 3, sd = sqrt(1.5))))
+#   return(L)
+#   }
+
+likelihood <- function(p,x = samples) {
+  L <- prod((p*dnorm(x, mean = 1, sd = 1) + (1-p)*dnorm(x, mean = 3, sd = sqrt(1.5))))
+  return(L)
+  }
+
+```
+
+```{r c.plots}
+p <- seq(0,1,.001)
+
+samples2 <- sapply(p, function(p) likelihood(p=p))
+qplot(p, samples2, main = "Full Path Over Pi") + xlab("Values of pi") + ylab("Log-likelihood")
+```
+
+<p>The function shows a maximum at $\pi =$ `r p[which.max(samples2)]`.</p>
+
+(d)
+
+```{r d.function}
+g.pi <- 1
+x <- samples
+
+integrand <- Vectorize(function(p) {1 * prod(p*dnorm(x, mean = 1, sd = 1) + (1-p)*dnorm(x, mean = 3, sd = sqrt(1.5)))})
+integrate(integrand, lower=0, upper=1)
+
+```
+
+(e)
+
+```{r d.function}
+
+x <- samples
+
+g <- expression(6*x^5)
+product <- expression(prod(p*dnorm(x, mean = 1, sd = 1) + (1-p)*dnorm(x, mean = 3, sd = sqrt(1.5))))
+
+integrand.one <- Vectorize(function(p) {g * product})
+integrate(integrand.one, lower=0, upper=1)
+
+integrand.two <- Vectorize(function(p) {g.pi.two * prod(p*dnorm(x, mean = 1, sd = 1) + (1-p)*dnorm(x, mean = 3, sd = sqrt(1.5)))})
+integrate(integrand.two, lower=0, upper=1)
+
+```
+
+3.
+(a) 
+$$ L(D) = \prod_{i=1}^{n} \Big( \frac{R_{j}e^{\alpha + \beta T_{j}} + (1-R_{j})}{1 + e^{\alpha + \beta T_{j}}} \Big) $$
+
+(b)
+```{r}
+
+loglike <- function(p) { 
+  alpha <- p[1]
+  beta <- p[2]
+  L <- log((o_ring_data$Failure*(exp(alpha+beta*o_ring_data$Temp))+(1-o_ring_data$Failure))/(1 + exp(alpha + beta*o_ring_data$Temp)))
+  return(-sum(L))
+  }
+
+estimates <- nlm(loglike, c(0,0))$estimate
+
+```
+
+<p>The likelihood estimates are $\alpha =$ `r estimates[1]` and $\beta =$ `r estimates[2]`.</p>
+
+( c )
+
+$$ P(\alpha , \beta | D) = \frac{L(\alpha , \beta) g_{\alpha}(\alpha) g_{\beta}(\beta)}{P(D)} $$
+
+$$ \approx L(\alpha , \beta) g_{\alpha}(\alpha) g_{\beta}(\beta) $$
+
+<p>Based on the estimates in part d, $g_{\alpha}(\alpha)$ and $g_{\beta}(\beta)$ will be uniform distributions:</p>
+
+```{r part.c}
+likelihood <- function(alpha, beta) { 
+  L <- (o_ring_data$Failure*(exp(alpha+beta*o_ring_data$Temp))+(1-o_ring_data$Failure))/(1 + exp(alpha + beta*o_ring_data$Temp))
+  return(prod(L))
+            }
+
+mh.sampler <- function(steps) {
+  g.alpha <- 1/10
+  g.beta <- 1/10
+
+  alpha <- 1
+  beta <- -1
+  
+  results <- data.frame("step" = 0, "alpha" = alpha, "beta" = beta, "likelihood" = 0)
+  
+  for (i in 1:steps) {
+  #propose a new alpha and beta
+  alpha.star <- 10 + (alpha + rnorm(1,mean = 0, sd = 1)) %% 10 #how make this work with mod??
+  beta.star <- -5 + (beta + rnorm(1,mean = 0, sd = 1)) %% 10
+  
+  #test against MH ratio
+  #since the pdfs are symmetric, we only need to test nu(j)/nu(i)
+  
+  U <- runif(1)
+  nu.i <- likelihood(alpha, beta)
+  nu.j <- likelihood(alpha.star,beta.star)
+  ratio <- exp(log(nu.j) - log(nu.i))
+  
+  if(U < min(ratio, 1) ) {
+    alpha <- alpha.star
+    beta <- beta.star
+    
+    results <- rbind(results, data.frame("step"=i, "alpha" = alpha, "beta" = beta, "likelihood" = nu.j))
+  } else {
+    alpha <- alpha
+    beta <- beta
+    
+    results <- rbind(results, data.frame("step"=i, "alpha" = alpha, "beta" = beta, "likelihood" = nu.i))
+  }
+  
+  }
+  return(results)
+}
+
+```
+
+```{r}
+samples <- mh.sampler(20000)
+
+qplot(as.numeric(samples$step), as.numeric(samples$alpha - samples$beta))
+
+```
+
+
