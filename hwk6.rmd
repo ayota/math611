@@ -155,7 +155,7 @@ $$ P(\omega | D) = \frac{1}{\Omega} $$
 <ul>
 <li>It is never 0, based on the conditions of our problem. If one group of 10 has 5 heads and 5 tails, the other group of 10 cannot have 5 and 5 as well, since there are only 9 tails in each bucket of 20. This is important because the Metropolis-Hastings ratio requires dividing f(j)/f(i).</li>
 
-<li>While the acceptance rate is about 80 percent, it is much lower than other measures I tried, which almost always results in M-H ratios around 1.</li>
+<li>While the acceptance rate is about 80 percent, it is much lower than other measures I tried, which almost always resulted in M-H ratios around 1.</li>
 
 <li>It involves all the data in the sequence of 200 in a somewhat meaningful way. Larger test groups, of say 50, would basically be determined by the odd group of 10, because each group of 20 always equals 2 dollars.</li>
 </ul>
