@@ -44,7 +44,7 @@ M2 <- sampler(50000)
 qplot(y = as.numeric(M2)) + xlab("Iteration") + ylab("Percent Occupied")
 ```
 
-<p>It appears to reach a steady state around 20,000 - 30,000 iterations at roughly 20 percent occupied, so I wiil run the sampler 1000 times for 25,000 steps per chain and generate a histogram.</p>
+<p>It appears to reach a steady state around 20,000 - 30,000 iterations at roughly 20 percent occupied, so I will run the sampler 1000 times for 25,000 steps per chain and generate a histogram.</p>
 
 ```{r echo=FALSE}
 M3 <- sapply(1:100, function(x) sampler(25000)) 
