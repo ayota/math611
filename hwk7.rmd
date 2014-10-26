@@ -3,7 +3,7 @@ Homework 7
 
 ```{r packages, echo=FALSE, include=FALSE}
 library(ggplot2)
-o_ring_data <- read.table("C:/Users/ea538/Downloads/o_ring_data.txt", header=T, quote="\"")
+o_ring_data <- read.table("o_ring_data.txt", header=T, quote="\"")
 ```
 
 2.
