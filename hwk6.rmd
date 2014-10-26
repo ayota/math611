@@ -165,6 +165,7 @@ $$ P(\omega | D) = \frac{1}{\Omega} $$
 flips <- function(chain, num) {
 #now we use the current sequence to propose a new sequence by switching up one group of 20 flips
 choice <- toString(num)
+#there is most definitely a better way to do this, possibly select range from list of ranges then wipe out tails/assign new values in one step
 switch(choice,
        '1'={chain[1:20] <- 1 #knock out all tails
             chain[sample(1:20, 9, replace=F)] <- -1 #place new tails
